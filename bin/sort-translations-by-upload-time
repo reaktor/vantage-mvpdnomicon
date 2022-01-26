@@ -1,0 +1,32 @@
+#!/usr/bin/env ruby
+require 'pathname'
+
+# Takes a list of "translated" (presumably from .xlsx to .csv) files on
+# stdin and sorts them according to their original files' update time.
+#
+# Assumes that the "translated" files live under "translated/",
+# following the same subdirectory pattern as the original files, which
+# live under "mvpd/".
+#
+# Assumes that the translated files have .csv appended to the filename
+# (rather than replacing the original extension), so they're named
+# like something.xlsx.csv
+
+TRANSLATED_DIR = Pathname.new("translated/")
+
+# Expects the path to a file translated from xlsx to CSV.
+# E.g., given "translated/mvpd/charter/whatever.xlsx.csv",
+# produces "mvpd/charter/whatever.xlsx"
+source_from_translation = lambda do |translated|
+  relative = translated.relative_path_from(TRANSLATED_DIR)
+  filename = File.basename(relative, ".csv")
+  relative.dirname + filename
+end
+
+original_time = lambda do |translated|
+  source_from_translation[translated].mtime
+end
+
+ARGF.map {|translated_filename| Pathname.new(translated_filename.chomp) }
+  .sort_by(&original_time)
+  .each {|filename| puts filename }
