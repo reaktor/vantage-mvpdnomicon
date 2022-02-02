@@ -1,0 +1,44 @@
+#!/usr/bin/env ruby
+
+# Original version that dumped out some YAML for further processing
+# by more stupid Ruby code elsewhere:
+#
+# require 'yaml'
+#
+# segment_database = Hash.new {|hash, key| hash[key] = Hash.new }
+#
+# assumes first row is headers
+# ARGF.each_line.drop(1).each do |line|
+#   line.chomp!
+#   (segment, date, time, network, imps) = line.split(",")
+#   record = segment_database[segment]
+#   record["#{date} #{time} #{network}"] = imps.to_i
+# end
+#
+# puts segment_database.to_yaml
+
+# Better version that dumps out CSV.
+#
+# Expects that the last column is impressions, and all the other columns
+# act as a unique key that should be used to deduplicate data.
+#
+# Also expects that data comes in in the right order, where a later row
+# should override an earlier row if they share the same key.
+headers = nil
+database = Hash.new
+
+# still assumes first row is headers
+ARGF.each_line do |line|
+  if headers.nil?
+    headers = line
+    next
+  end
+
+  id, imps = line.match(/^(.+),(.+)$/)[1..2]
+  database[id] = imps.to_i
+end
+
+print headers
+database.each do |*row|
+  puts row.join(",")
+end
