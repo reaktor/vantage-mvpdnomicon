@@ -1,0 +1,23 @@
+#!/usr/bin/env ruby
+USAGE = <<-EOF
+Given two dates, spits out a regex that matches any date between
+them, inclusive.
+
+Useful for combining with xsv to restrict data to a given date range,
+e.g.
+
+  $ xsv search -s 'Event Date' $(date-range-regex 2022-01-17 2022-01-23)
+
+EOF
+require 'date'
+
+if ARGV.count != 2 then
+  STDERR.puts USAGE
+  STDERR.puts "Error: need exactly two dates to generate a range."
+  exit(1)
+end
+
+start_date = Date.parse(ARGV[0])
+end_date = Date.parse(ARGV[1])
+
+puts (start_date..end_date).map(&:to_s).join("|")
