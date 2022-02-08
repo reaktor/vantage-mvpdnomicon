@@ -1,0 +1,41 @@
+#!/usr/bin/env ruby
+
+# Detects instances where two rows in Altice or Charter data have the
+# same segment name, event date, event time, and network, but they have
+# different values for ISCI/ADID.
+#
+# The point of this was to figure out how often this has happened,
+# because in February 2022 we realized that we hadn't included ISCI/ADID
+# to determine row uniqueness, and we probably should have.
+#
+# Expects input as CSV with the first row as headers, and then the
+# following columns:
+#
+#   1. Audience Segment Name
+#   2. Event Date
+#   3. Event Time
+#   4. Network
+#   5. ISCI/ADID
+#   6. Impressions
+
+require "set"
+
+headers = nil
+database = Hash.new {|hash, key| hash[key] = Set.new }
+
+# blindly assumes first row is headers
+ARGF.each_line do |line|
+  if headers.nil?
+    headers = line
+    next
+  end
+
+  id, isci = line.match(/^(.+),(.+),(.+)$/)[1..2]
+  database[id].add(isci)
+end
+
+database.each do |ids, iscis|
+  if iscis.count > 1
+    puts "#{ids}: #{iscis.join(", ")}"
+  end
+end
