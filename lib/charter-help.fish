@@ -20,7 +20,7 @@ function filter-segments
 end
 
 function select-relevant-fields
-  xsv select 'Audience Segment Name','Event Date','Event Time','Network','Impressions Delivered'
+  xsv select 'Audience Segment Name','Event Date','Event Time','Network','ISCI/ADID','Impressions Delivered'
 end
 
 function sum-nums
