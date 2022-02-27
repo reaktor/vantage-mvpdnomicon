@@ -1,5 +1,6 @@
 /mvpd/
 /junk
+/cleaned
 
 **.idx
 .envrc
