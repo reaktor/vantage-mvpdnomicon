@@ -27,7 +27,8 @@ This uses some random stuff.
 2. [`xlsx2csv`][xlsx2csv] (the Python one, not the Rust one. (Just
    because I found it first, not necessarily because it's better.)):
    does what it says on the tin.
-3. `make`
+3. [`redo`][redo]: a dependency-based build tool, used for effeciently
+   translating files.
 4. Ruby: for random small custom utilities. (Recommended: install
    through `asdf`.)
 
@@ -44,6 +45,7 @@ things the extra-hard way.
 
 [asdf]: https://asdf-vm.com/
 [fish]: https://fishshell.com/
+[redo]: https://redo.readthedocs.io/en/latest/
 [ripgrep]: https://github.com/BurntSushi/ripgrep
 [xlsx2csv]: https://github.com/dilshod/xlsx2csv
 [xsv]: https://lib.rs/crates/xsv
@@ -57,10 +59,10 @@ CSV. This will be slow the first time:
 
 ```fish
 # Get the latest data from S3:
-$ make sync
+$ redo sync
 
-# Translate/extract/copy the data to CSV:
-$ make -j9 altice charter
+# Translate/extract/copy the data to CSV.
+$ redo -j 9
 ```
 
 This will take the source files from the `mvpd` directory, and create
@@ -69,14 +71,17 @@ CSV files in the `translated` directory. So for example,
 available as a CSV in
 `translated/mvpd/charter/VIACOM_CHARTER_DAILY_20211101_details.txt.csv`.
 
-You can adjust `altice charter` to be the partner names you need,
-although at the time of this writing they were the only ones supported!
-Check out the Makefile to see what's up now.
+If you only care about a specific partner, you can build just the files
+for that partner like so:
 
-You can also adjust the `9` in `-j9` to change the number of jobs that
-will run in parallel. Maybe you have more cores and you want to run
-more jobs, or maybe you want to remove the `-j9` entirely because you
-want to wait literally all day.
+```
+$ redo -j 9 altice
+```
+
+You can also adjust the `9` in `-j 9` to change the number of jobs that
+will run in parallel. Maybe you have more cores and you want to run more
+jobs, or maybe you want to remove the `-j 9` entirely because you want
+to wait literally all day.
 
 ### The path to insanity: some easy tasks...
 
@@ -370,3 +375,53 @@ Now we have something to go on! From here, maybe you could...
 - Query the `file_name` for those rows in the Redshift table, and see if
   it's what you expect.
 - Go on a long, fun _data adventure!_
+
+## Teaching it new tricks
+
+The basic rules here are...
+
+1. The `mvpd` directory is kept in sync with the S3 source files.  (That
+   is, updates to S3 are synced to `mvpd`, but changes in `mvpd` are
+   _not_ synced back.)
+2. When files in the `mvpd` directory are added or changed, CSV copies
+   of them are created in the `translated` directory.
+3. Sometimes the source files in `mvpd` are used for metadata (e.g., to
+   sort them by upload time), so you should be able to figure out the
+   source file for any translated file by removing the `translated/`
+   prefix and the `.csv` suffix.
+
+To manage the translation of files, we use [`redo`][redo].  Redo
+serves the same purpose as Make.  We started out using Make, but the
+problem with Make is that it can't comprehend filenames with spaces.
+
+With redo, each target lives in its own file.  When you run just plain
+`redo`, it runs the `all` target, and the code for that lives in
+`all.do`.  `.do` files are basically just shell scripts.
+
+`all` runs all the targets for the partners.  Each partner target has
+a corresponding `.do` file in the root directory (e.g. `altice.do`).
+The top-level partner targets will...
+
+1. Find the source files we care about.
+2. Figure out what the translated files should be named.
+3. Run the targets for the translated files, if the sources have
+   changed.
+
+The rules for producing the translated files are in `.do` files in the
+translated directories.  For instance, the rule to produce a `.csv` file
+from an Altice `.xlsx` file is in
+`translated/mvpd/altice/default.xlsx.csv.do`: this is the rule that redo
+uses to build a `.xlsx.csv` file in the `translated/mvpd/altice/`
+directory.  A partner might have multiple `default.*.csv.do` files,
+since file formats have changed over time.
+
+The important things to know about these `.do` files are...
+
+- They're basically just shell scripts.
+- Standard output will be used to create the target file.
+- The variable `$2` contains the target name.  (So in the case of
+  generating CSV data with a `default.something.csv.do` file, `$2` would
+  be the name of the _translated_ file, without the directory, like
+  `source-data-file-2022-04-01.something.csv`.)
+- If you don't want to just write to stdout, the variable `$3` contains
+  a file that you can write to to create the target.
