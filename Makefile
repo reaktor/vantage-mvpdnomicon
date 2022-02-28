@@ -12,6 +12,13 @@ translated_charter_files_txt := $(addsuffix .csv,$(addprefix translated/,$(sourc
 source_charter_files := $(source_charter_files_xlsx) $(source_charter_files_txt)
 translated_charter_files := $(translated_charter_files_xlsx) $(translated_charter_files_txt)
 
+
+source_comcast_files_csv := $(shell find cleaned/comcast -name '*.csv')
+translated_comcast_files_csv := $(addprefix translated/mvpd/comcast/,$(notdir $(source_comcast_files_csv)))
+source_comcast_files_xlsx := $(shell find cleaned/comcast -name '*.xlsx')
+translated_comcast_files_xlsx := $(addsuffix .csv,$(addprefix translated/mvpd/comcast/,$(notdir $(source_comcast_files_xlsx))))
+translated_comcast_files := $(translated_comcast_files_xlsx) $(translated_comcast_files_csv)
+
 source_files := $(source_altice_files) $(source_charter_files)
 translated_files := $(translated_altice_files) $(translated_charter_files)
 
@@ -31,11 +38,30 @@ translated/mvpd/charter/%.xlsx.csv: mvpd/charter/%.xlsx
 translated/mvpd/charter/%.txt.csv: mvpd/charter/%.txt
 	xsv fmt -d '|' $< > $@
 
+translated/mvpd/comcast/%.csv: cleaned/comcast/%.csv
+	cp $< $@
+
+translated/mvpd/comcast/%.xlsx.csv: cleaned/comcast/%.xlsx
+	xlsx2csv --sheetname "Data" --dateformat "%Y-%m-%d" --timeformat "%H:%M:%S" $< > $@
+
 altice: $(translated_altice_files)
 
 charter: $(translated_charter_files)
 
+comcast: $(translated_comcast_files)
+
+clean_comcast_files:
+	mkdir -p cleaned/comcast \
+	&& bin/move-and-clean-filenames mvpd/comcast cleaned/comcast weekly_\\d+_capped \
+	&& bin/move-and-clean-filenames mvpd/comcast cleaned/comcast dailyimpressionreport_capped \
+	&& bin/move-and-clean-filenames mvpd/comcast cleaned/comcast "dailyimpressionreport -"
+
+remove_clean_comcast_files:
+	rm -rf cleaned/comcast
+
 clean:
+	@read -r -p "You sure you wanna remove your translated files? It takes a loooong time to get them back... [y/N]:" CONTINUE; \
+	[[ $$CONTINUE = "y" ]] || [[ $$CONTINUE = "Y" ]] || (echo "Aborting."; exit 1;)
 	rm -v $(translated_files)
 
 .PHONY: all clean sync

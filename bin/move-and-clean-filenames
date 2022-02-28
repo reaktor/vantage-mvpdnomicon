@@ -1,0 +1,41 @@
+#!/usr/bin/env ruby
+USAGE = <<-EOF
+Take an source directory a destination directory and move every file to the
+destination while replacing whitespace in filenames.
+
+It takes an optional regex as a 3rd argument. Regex strings need to escape any
+backslashes (\) to work correctly. E.g., \d for a digit must be \\d. You don't need
+to include the leading and trailing slashes (/.../)
+
+e.g.
+
+  $ move-and-clean-filenames mvpd/comcast cleaned/comcast weekly_\\d+_capped
+
+EOF
+require 'fileutils'
+require 'pathname'
+
+if ARGV.count < 2 then
+  STDERR.puts USAGE
+  STDERR.puts "Error: need a source and destination directory"
+  exit(1)
+end
+
+source_dir = Pathname.new(ARGV[0])
+destination_dir = Pathname.new(ARGV[1])
+regex_filter = ARGV[2] ? Regexp.new(ARGV[2]) : nil
+
+if !destination_dir.exist? then
+  FileUtils.mkdir_p(destination_dir)
+end
+
+source_dir.each_child(false) do |file|
+  if regex_filter && !regex_filter.match(file.to_s()) then
+    next
+  end
+  source_file = "#{source_dir}/#{file}"
+  destination_file = "#{destination_dir}/#{file.to_s().gsub(" ","_")}"
+  puts("Moving #{source_file} -> #{destination_file}")
+  FileUtils.cp(source_file, destination_file)
+end
+

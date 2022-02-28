@@ -53,7 +53,7 @@ things the extra-hard way.
 These examples assuming I'm running in a fish shell session.
 
 Always start by getting the latest data from S3 and translating it to
-CSV.  This will be slow the first time:
+CSV. This will be slow the first time:
 
 ```fish
 # Get the latest data from S3:
@@ -64,7 +64,7 @@ $ make -j9 altice charter
 ```
 
 This will take the source files from the `mvpd` directory, and create
-CSV files in the `translated` directory.  So for example,
+CSV files in the `translated` directory. So for example,
 `mvpd/charter/VIACOM_CHARTER_DAILY_20211101_details.txt` will be
 available as a CSV in
 `translated/mvpd/charter/VIACOM_CHARTER_DAILY_20211101_details.txt.csv`.
@@ -74,7 +74,7 @@ although at the time of this writing they were the only ones supported!
 Check out the Makefile to see what's up now.
 
 You can also adjust the `9` in `-j9` to change the number of jobs that
-will run in parallel.  Maybe you have more cores and you want to run
+will run in parallel. Maybe you have more cores and you want to run
 more jobs, or maybe you want to remove the `-j9` entirely because you
 want to wait literally all day.
 
@@ -101,9 +101,9 @@ Key points:
   coincidentally _contain_ the order number, e.g. reach percentages.
 - Remember that in rare cases, the order number doesn't start with the
   letter `O`, so that previous tip might not apply!
-- This is just a full-text search.  It doesn't respect the CSV
-  structure, so it doesn't just search the segment name.  If you're
-  unlucky, you'll get some false positives here.  In those cases, you
+- This is just a full-text search. It doesn't respect the CSV
+  structure, so it doesn't just search the segment name. If you're
+  unlucky, you'll get some false positives here. In those cases, you
   can do a more sophisticated search using `xsv`, like in the next
   example!
 
@@ -165,16 +165,16 @@ O79535_CHARTER_VA_Walgreens_1PD_E1198117_A  2022-01-10  02:19:04    MTV      123
 ```
 
 1. We find all the files that might contain data for this order.
-2. We exclude Charter's `_summary.txt` files.  Those are PCR data, and
+2. We exclude Charter's `_summary.txt` files. Those are PCR data, and
    we just want spot-level data.
 3. We jam all the data together into one megasheet using `xsv cat rows`.
 4. We use `xsv search`, `xsv select`, and `xsv table` to filter the
    rows to our order, narrow down the columns, and make the result
    human-readable.
 
-In some cases, this is what you want!  For Charter, this isn't yet fully
+In some cases, this is what you want! For Charter, this isn't yet fully
 helpful, because earlier rows should be replaced by later rows for the
-same segment, date, time, and network.  In that case, what you really
+same segment, date, time, and network. In that case, what you really
 want is...
 
 #### Give me the final-est data for one order
@@ -195,12 +195,12 @@ This is the same as before, except with a couple fun little utilities.
 
 `bin/sort-translations-by-upload-time` takes a list of translated files
 (i.e., our CSVs) and sorts them based on the original upload time of the
-original files.  (It figures this out using the modification time of the
-source files, which `aws s3 sync` helpfully sets.  But this means you
+original files. (It figures this out using the modification time of the
+source files, which `aws s3 sync` helpfully sets. But this means you
 shouldn't touch the source files!)
 
 This is important because the order of upload dictates the order that
-data should be processed in. 
+data should be processed in.
 
 `bin/accumulate` takes in CSV data of the exact format we're selecting
 here (Audience Segment Name, Event Date, Event Time, Network,
@@ -214,7 +214,7 @@ our Redshift data row-for-row.
 
 #### Interlude: some helpful functions
 
-We've just done all this the hard way.  Lucky for you, someone has
+We've just done all this the hard way. Lucky for you, someone has
 already done it the hard way, and so you can do it the
 slightly-less-hard way!
 
@@ -324,7 +324,7 @@ ORDER BY audience_segment_name, event_date, event_time, network;
 ```
 
 In this particular case, we're "lucky" because this one order number
-contains multiple segment names.  We need to account for them both in
+contains multiple segment names. We need to account for them both in
 our query.
 
 Now, run that query and get the result as CSV:
