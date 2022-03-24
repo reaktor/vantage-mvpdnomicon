@@ -66,3 +66,21 @@ The strange things about this:
 - Why did their system spit this stuff out in a random way that wasn't obviously
   evident?
 - Why is their system duplicating some more than others?
+
+## 2022-03-24 Dish impressions for order 79220, which we don't have in our data
+
+Had these 2 rows show up from the bot:
+
+```
+order_number,audience_segment_name,br_dt_key,earliest,latest,s3_imps,bq_imps,imps_diff,expected_imps_if_known
+79220,Viacom Reach Booster_Wendy's_1Q22_79323_Enablement_E1195973_Unexposed_FEB,202207,2022-02-07,2022-02-13,0,10707,-10707,
+79220,Viacom Reach Booster_Wendy's_1Q22_79323_Enablement_E1195973_Unexposed_FEB,202208,2022-02-17,2022-02-20,0,7413,-7413,
+```
+
+Funny thing is, we don't have an order 79220 in our Dish data...
+
+After investigating, it turned out there was a mapping that didn't surface
+itself in Big Query. The reason being only a subset of an element number needed
+to be mapped, so there couldn't be a mapping for the whole set. We used our
+older `dish_element_number_overrides` mechanism in the Python code by making a
+few adustements. See commit `413279b` in the vantage-data-pipelines app.
