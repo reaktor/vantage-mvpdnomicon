@@ -3,6 +3,7 @@ set translations translated/mvpd/charter
 function charter-spot-files
   ls $translations/*.xlsx.csv
   ls $translations/*_details.txt.csv
+  ls $translations/*_details_*.txt.csv
 end
 
 function sorted-charter-spot-files
