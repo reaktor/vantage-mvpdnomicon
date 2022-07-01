@@ -1,0 +1,28 @@
+#!/usr/bin/env ruby
+
+# Accumulates "final" data from CSV input.
+#
+# Expects that the next-to-last column is impressions, the last column
+# is whether the impressions are finalized, and all the other columns
+# act as a unique key that should be used to deduplicate data.
+#
+# Also expects that data comes in in the right order, where a later row
+# should override an earlier row if they share the same key.
+headers = nil
+database = Hash.new
+
+# blindly assumes first row is headers
+ARGF.each_line do |line|
+  if headers.nil?
+    headers = line
+    next
+  end
+
+  id, imps, finalized = line.match(/^(.+),(.+),(.+)$/)[1..3]
+  database[id] = [imps.to_i, finalized]
+end
+
+print headers
+database.each do |*row|
+  puts row.flatten.join(",")
+end
