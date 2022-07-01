@@ -1,0 +1,51 @@
+#!/usr/bin/env ruby
+
+# Detects instances where a given spot in Charter data, identified by
+# the combination of event date, event time, network, and ISCI/ADID,
+# has been reported in with different values for Audience Segment Name.
+#
+# Expects on stdin a list of files that should be checked, in order.
+
+require "csv"
+require "pry"
+require "set"
+
+key = ->(row) do
+  date = row["Event Date"]
+  time = row["Event Time"]
+  network = row["Network"]
+  isci = row["ISCI/ADID"]
+
+  "#{date} #{time} #{network} #{isci}"
+end
+
+headers = nil
+database = Hash.new {|hash, key| hash[key] = Set.new }
+
+process_file = ->(filename) do
+  CSV.foreach(filename, col_sep: "|", headers: true) do |row|
+    row_key = key[row]
+    asn = row["Audience Segment Name"]
+
+    next if not asn.include?("_VA_")
+
+    known_asns = database[row_key]
+    if !known_asns.empty? and !known_asns.include? asn
+      STDERR.puts "#{row_key}: new ASN '#{asn}' in #{filename}; previously: #{known_asns}"
+    end
+
+    known_asns.add(asn)
+  end
+end
+
+ARGF.each_line do |filename|
+  process_file.(filename.chomp)
+end
+
+# binding.pry
+
+database.each do |ids, iscis|
+  if iscis.count > 1
+    puts "#{ids}: #{iscis.join(", ")}"
+  end
+end

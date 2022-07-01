@@ -1,0 +1,168 @@
+#!/usr/bin/env ruby
+
+# Detects instances where two rows in Altice or Charter data have the
+# same segment name, event date, event time, and network, but they have
+# different values for ISCI/ADID.
+#
+# The point of this was to figure out how often this has happened,
+# because in February 2022 we realized that we hadn't included ISCI/ADID
+# to determine row uniqueness, and we probably should have.
+#
+# Expects input as CSV with the first row as headers, and then the
+# following columns:
+#
+#   1. Audience Segment Name
+#   2. Event Date
+#   3. Event Time
+#   4. Network
+#   5. ISCI/ADID
+#   6. Impressions
+
+require "csv"
+require "pp"
+require "set"
+
+RELEVANT_COLUMNS = [
+  "Audience Segment Name",
+  "Event Date",
+  "Event Time",
+  "Network",
+  "ISCI/ADID",
+  "Impressions Delivered",
+]
+
+class DataRow
+  def initialize(row_data)
+    @row_data = row_data
+  end
+
+  def key
+    @row_data.first(5).join(",")
+  end
+
+  def key_without_isci
+    @row_data.first(4).join(",")
+  end
+
+  def isci
+    @row_data[4]
+  end
+
+  def impressions
+    @row_data[5].to_i
+  end
+end
+
+class CharterFile
+  def initialize(filename)
+    @filename = filename
+  end
+
+  def relevant_data
+    data.values_at(*RELEVANT_COLUMNS)
+  end
+
+  def rows
+    relevant_data.map {|row| DataRow.new(row) }
+  end
+
+  private
+  def data
+    @data ||= CSV.read(@filename, headers: true)
+  end
+end
+
+class ISCIDB
+  include Enumerable
+  extend Forwardable
+  def_delegators :@db, :each, :[]
+
+  def initialize
+    @db = Hash.new
+  end
+
+  def register_row(row)
+    records_for_row = (@db[row.key_without_isci] ||= Hash.new)
+    records_for_row[row.isci] = row.impressions
+  end
+
+  def compare(other_iscidb)
+    @db.each do |(key_without_isci, iscis_with_imps)|
+      other = other_iscidb[key_without_isci]
+
+      next if other.nil?
+
+      from_count = other.count
+      to_count = iscis_with_imps.count
+
+      # if from_count != to_count
+      if from_count > to_count
+        from_imps = other.map(&:last).reduce(&:+)
+        to_imps = iscis_with_imps.map(&:last).reduce(&:+)
+
+        puts "--- #{key_without_isci} ---"
+        puts "totals: #{from_imps} -> #{to_imps}"
+        puts "#{other.inspect} -> #{iscis_with_imps.inspect}"
+        puts
+        # puts "#{key_without_isci}: iscis: #{from_count} => #{to_count}, imps: #{from_imps} => #{to_imps}"
+      end
+    end
+  end
+
+  def merge!(other_iscidb)
+    other_iscidb.each do |(key_without_isci, iscis_with_imps)|
+      (@db[key_without_isci] ||= {}).merge!(iscis_with_imps)
+    end
+  end
+end
+
+class BrokenISCIDB < ISCIDB
+  def merge!(other_iscidb)
+    other_iscidb.each do |(key_without_isci, iscis_with_imps)|
+      @db[key_without_isci] = iscis_with_imps
+    end
+  end
+end
+
+historical_iscis = ISCIDB.new
+
+ARGF.each_line do |filename|
+  filename.chomp!
+
+  incoming_iscis = ISCIDB.new
+
+  file = CharterFile.new(filename)
+  file.rows.each do |row|
+    incoming_iscis.register_row(row)
+  end
+
+  puts "\n\n===== loading #{filename} =====\n"
+  incoming_iscis.compare(historical_iscis)
+
+  historical_iscis.merge!(incoming_iscis)
+end
+
+totals = {
+  one_isci: 0,
+  multi_isci_dupes: 0,
+  multi_isci_distinct: 0,
+  multi_isci_hard_to_say: 0,
+}
+
+historical_iscis.each do |(segment, iscis)|
+  if iscis.count == 1
+    totals[:one_isci] += 1
+  else
+    imps_values = Set.new(iscis.values)
+
+    if imps_values.all? {|val| val <= 5 }
+      totals[:multi_isci_hard_to_say] += 1
+    elsif imps_values.count == 1
+      totals[:multi_isci_dupes] += 1
+    else
+      totals[:multi_isci_distinct] += 1
+    end
+  end
+end
+
+pp totals
