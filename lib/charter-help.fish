@@ -1,5 +1,13 @@
 set translations translated/mvpd/charter
 
+# Column name constants
+set -l asd_col "Audience Segment Name"
+set -l date_col "Event Date"
+set -l time_col "Event Time"
+set -l network_col "Network"
+set -l isci_col "ISCI/ADID"
+set -l impressions_col "Impressions Delivered"
+
 function charter-spot-files
   ls $translations/*.xlsx.csv
   ls $translations/*_details.txt.csv
@@ -84,5 +92,51 @@ function check-charter-mismatch-file --argument file \
     else
       check-line "$trimmed_line"
     end
+  end
+end
+
+function get-vantage-spots \
+  --argument data_file \
+  --description "Selects all rows with _VA_ in the Audience Segment Name."
+
+  xsv search -s $asd_col '_VA_' $data_file
+end
+
+function get-unique-spots \
+  --argument data_file \
+  --description "Filters rows within data file to those with unique spots (where spot = date + time + network + isci)."
+
+  xsv select $date_col,$time_col,$network_col,$isci_col | sort -u
+end
+
+
+function contains-underscore-num-asd \
+  --argument data_file \
+  --description "Looks for any ASD values ending in \"_1\", \"_2\", etc."
+
+  set underscore_num_asd (xsv search -s $asd_col '^.*_[0-9]$' $data_file \
+      | xsv select $asd_col \
+      | tail -n +2 \
+      | sort -u)
+  if test (count $underscore_num_asd) -gt 0
+      echo "Contains the following Audience Segment Names ending in _1, _2, etc.:"
+      echo $underscore_num_asd
+      return 1
+  end
+end
+
+function contains-duplicate-spots \
+  --argument data_file \
+  --description "Calculates the number of duplicate spots in the given file."
+
+  set num_spots (xsv count $data_file)
+  set num_unique_spots (math (xsv select $date_col,$time_col,$network_col,$isci_col $data_file\
+      | sort -u \
+      | wc -l) - 1) # subtract 1 from the line count because one of those lines is the header
+  set num_dupes (math $num_spots - $num_unique_spots)
+  echo $num_dupes
+  if test $num_dupes -gt 0
+      echo "Contains $num_dupes duplicate spots."\n
+      return 1
   end
 end
