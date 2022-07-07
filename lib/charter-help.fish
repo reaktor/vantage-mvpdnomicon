@@ -150,7 +150,8 @@ function contains-default-asn \
   --argument data_file \
   --description "Checks for Audience Segment Names set to \"Default\""
 
-  set -l num_default_asn (cat $file_default_asn | xsv search -s 'Audience Segment Name' "^Default\$" | xsv count)
+  # set -l num_default_asn (cat $data_file | filter-segments "^Default\$" | xsv count) <-- Why does this not work??
+  set -l num_default_asn (cat $data_file | xsv search -s 'Audience Segment Name' "^Default\$" | xsv count)
   if test $num_default_asn -gt 0
     echo "Contains $num_default_asn rows with Audience Segment Name set to \"Default\"."\n
     return 1
