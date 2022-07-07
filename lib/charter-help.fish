@@ -130,7 +130,7 @@ function contains-duplicate-spots \
   --description "Calculates the number of duplicate spots in the given file."
 
   set num_spots (xsv count $data_file)
-  set num_unique_spots (math (xsv select $date_col,$time_col,$network_col,$isci_col $data_file\
+  set num_unique_spots (math (xsv select $asd_col,$date_col,$time_col,$network_col,$isci_col $data_file\
       | sort -u \
       | wc -l) - 1) # subtract 1 from the line count because one of those lines is the header
   set num_dupes (math $num_spots - $num_unique_spots)
