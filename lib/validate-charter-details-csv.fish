@@ -18,7 +18,11 @@ function validate-file \
   contains-underscore-num-asd $tmp_file
   set -l underscore_num_status $status
   
-  if test $dupes_status = 0; and test $underscore_num_status = 0 
+  # Check for Audience Segment Name set to "Default"
+  contains-default-asn $file # Use complete file instead of tmp_file because we can't tell if a row with "Default" ASN is vantage data
+  set -l default_asn_status $status
+
+  if test $dupes_status = 0; and test $underscore_num_status = 0; and test $default_asn_status = 0
     echo "No issues found in file."
   end
   

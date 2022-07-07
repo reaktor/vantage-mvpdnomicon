@@ -25,11 +25,16 @@ end
 function filter-segments
   set -l pattern $argv[1]
 
-  xsv search -s 'Audience Segment Name' $pattern
+  xsv search -s 'Audience Segment Name' "$pattern"
 end
 
 function select-relevant-fields
   xsv select 'Audience Segment Name','Event Date','Event Time','Network','ISCI/ADID','Impressions Delivered'
+end
+
+# Same as select-relevant-fields, but without Impressions Delivered
+function select-spot-fields
+  xsv select 'Audience Segment Name','Event Date','Event Time','Network','ISCI/ADID'
 end
 
 function sum-nums
@@ -106,21 +111,23 @@ function get-unique-spots \
   --argument data_file \
   --description "Filters rows within data file to those with unique spots (where spot = date + time + network + isci)."
 
-  xsv select $date_col,$time_col,$network_col,$isci_col | sort -u
+  select-spot-fields | sort -u
 end
-
 
 function contains-underscore-num-asd \
   --argument data_file \
   --description "Looks for any ASD values ending in \"_1\", \"_2\", etc."
 
-  set underscore_num_asd (xsv search -s $asd_col '^.*_[0-9]$' $data_file \
+  set -l underscore_num_asd (xsv search -s $asd_col '^.*_[0-9]$' $data_file \
       | xsv select $asd_col \
       | tail -n +2 \
       | sort -u)
   if test (count $underscore_num_asd) -gt 0
-      echo "Contains the following Audience Segment Names ending in _1, _2, etc.:"
-      echo $underscore_num_asd
+      echo "Contains the following Audience Segment Names ending in _[num]:"
+      for i in $underscore_num_asd
+        echo \t\U2022"  $underscore_num_asd"
+      end
+      echo \n
       return 1
   end
 end
@@ -129,14 +136,23 @@ function contains-duplicate-spots \
   --argument data_file \
   --description "Calculates the number of duplicate spots in the given file."
 
-  set num_spots (xsv count $data_file)
-  set num_unique_spots (math (xsv select $asd_col,$date_col,$time_col,$network_col,$isci_col $data_file\
-      | sort -u \
+  set -l num_spots (xsv count $data_file)
+  set -l num_unique_spots (math (get-unique-spots $data_file \
       | wc -l) - 1) # subtract 1 from the line count because one of those lines is the header
-  set num_dupes (math $num_spots - $num_unique_spots)
-  echo $num_dupes
+  set -l num_dupes (math $num_spots - $num_unique_spots)
   if test $num_dupes -gt 0
       echo "Contains $num_dupes duplicate spots."\n
       return 1
+  end
+end
+
+function contains-default-asn \
+  --argument data_file \
+  --description "Checks for Audience Segment Names set to \"Default\""
+
+  set -l num_default_asn (cat $file_default_asn | xsv search -s 'Audience Segment Name' "^Default\$" | xsv count)
+  if test $num_default_asn -gt 0
+    echo "Contains $num_default_asn rows with Audience Segment Name set to \"Default\"."\n
+    return 1
   end
 end
