@@ -111,10 +111,10 @@ function get-unique-spots \
   --argument data_file \
   --description "Filters rows within data file to those with unique spots (where spot = date + time + network + isci)."
 
-  select-spot-fields | sort -u
+  cat $data_file | select-spot-fields | sort -u
 end
 
-function contains-underscore-num-asd \
+function count-underscore-num-asd \
   --argument data_file \
   --description "Looks for any ASD values ending in \"_1\", \"_2\", etc."
 
@@ -122,38 +122,22 @@ function contains-underscore-num-asd \
       | xsv select $asd_col \
       | tail -n +2 \
       | sort -u)
-  if test (count $underscore_num_asd) -gt 0
-      echo "Contains the following Audience Segment Names ending in _[num]:"
-      for i in $underscore_num_asd
-        echo \t\U2022"  $underscore_num_asd"
-      end
-      echo \n
-      return 1
-  end
 end
 
-function contains-duplicate-spots \
+function count-duplicate-spots \
   --argument data_file \
   --description "Calculates the number of duplicate spots in the given file."
 
   set -l num_spots (xsv count $data_file)
   set -l num_unique_spots (math (get-unique-spots $data_file \
       | wc -l) - 1) # subtract 1 from the line count because one of those lines is the header
-  set -l num_dupes (math $num_spots - $num_unique_spots)
-  if test $num_dupes -gt 0
-      echo "Contains $num_dupes duplicate spots."\n
-      return 1
-  end
+  math $num_spots - $num_unique_spots  
 end
 
-function contains-default-asn \
+function count-default-asn \
   --argument data_file \
   --description "Checks for Audience Segment Names set to \"Default\""
 
   # set -l num_default_asn (cat $data_file | filter-segments "^Default\$" | xsv count) <-- Why does this not work??
-  set -l num_default_asn (cat $data_file | xsv search -s 'Audience Segment Name' "^Default\$" | xsv count)
-  if test $num_default_asn -gt 0
-    echo "Contains $num_default_asn rows with Audience Segment Name set to \"Default\"."\n
-    return 1
-  end
+  cat $data_file | xsv search -s 'Audience Segment Name' "^Default\$" | xsv count
 end
